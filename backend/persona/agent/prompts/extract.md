@@ -47,4 +47,4 @@ If nothing in this exchange is worth remembering, return `[]`.
 
 Example:
 
-[{"type": "profile", "content": "Has a dog named Pip.", "importance": 4}, {"type": "goal", "content": "Wants to ship Persona v1 by end of May.", "importance": 5}]
+[{{"type": "profile", "content": "Has a dog named Pip.", "importance": 4}}, {{"type": "goal", "content": "Wants to ship Persona v1 by end of May.", "importance": 5}}]
