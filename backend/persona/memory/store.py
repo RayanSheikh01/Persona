@@ -1,17 +1,18 @@
-def MemoryStore():
-    return {}
+class MemoryStore:
+    def __init__(self):
+        self._memory = {}
 
-def insert(m, embedding):
-    m[len(m)] = embedding
+    def insert(self, embedding):
+        self._memory[len(self._memory)] = embedding
 
-def get(id, m):
-    return m[id]
+    def get(self, id):
+        return self._memory.get(id)
 
-def list_by_type(m, type):
-    return [embedding for embedding in m.values() if embedding['type'] == type]
+    def list_by_type(self, type):
+        return [embedding for embedding in self._memory.values() if embedding['type'] == type]
 
-def list_all(m):
-    return list(m.values())
+    def list_all(self):
+        return list(self._memory.values())
 
 def vector_search(m, query_embedding, top_k=5):
     # Simple cosine similarity search

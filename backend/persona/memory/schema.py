@@ -23,3 +23,12 @@ class Memory(BaseModel):
     superseded_by: str | None = None
     related_ids: list[str] = Field(default_factory=list)
 
+
+def _row_to_memory(row):
+    return {
+        'id': row['id'],
+        'type': row['type'],
+        'content': row['content'],
+        'embedding': row['embedding']
+    }
+
