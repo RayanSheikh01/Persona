@@ -62,6 +62,11 @@ class HFBackend:
         return vec.tolist() if hasattr(vec, "tolist") else list(vec)
 
     async def extract(self, prompt: str) -> list[dict]:
+        # remove trailing ```
+        if prompt.startswith("```"):
+            prompt = prompt[3:]
+        if prompt.endswith("```"):
+            prompt = prompt[:-3]
         response = await self._chat_client.chat_completion(
             messages=[{"role": "user", "content": prompt}],
             max_tokens=1024,
