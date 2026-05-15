@@ -31,7 +31,7 @@ class FakeLLMBackend:
     async def extract(self, prompt: str) -> list[dict]:
         if not self.extraction:
             raise NotImplementedError("Extraction not supported in FakeLLMBackend")
-        return [{"name": "example", "value": "example value"}]
+        return [{"type": "fact", "content": "example value", "importance": 3}]
 
 
 class HFBackend:
