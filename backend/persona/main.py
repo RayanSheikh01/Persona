@@ -10,6 +10,7 @@ from persona.api.memories import (
     messages_router as memory_messages_router,
     router as memories_router,
 )
+from persona.api.stats import router as stats_router
 from persona.db.connection import get_db_connection
 from persona.db.migrations.migrations import apply_migrations
 from persona.deps import AppDeps, set_app_deps
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(memories_router)
     app.include_router(memory_messages_router)
+    app.include_router(stats_router)
     return app
 
 
