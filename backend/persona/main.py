@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from persona.agent.prompts import load_prompt
 from persona.api.conversations import router as conversations_router
 from persona.api.health import router as health_router
+from persona.api.chat import router as chat_router
 from persona.db.connection import get_db_connection
 from persona.db.migrations.migrations import apply_migrations
 from persona.deps import AppDeps, set_app_deps
@@ -47,6 +48,7 @@ def create_app() -> FastAPI:
     app = FastAPI(lifespan=lifespan)
     app.include_router(health_router)
     app.include_router(conversations_router)
+    app.include_router(chat_router)
     return app
 
 
