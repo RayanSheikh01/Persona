@@ -1,5 +1,51 @@
-from fastapi import FastAPI
-from .api.health import router as health_router
+from contextlib import asynccontextmanager
 
-app = FastAPI()
-app.include_router(health_router)
+from fastapi import FastAPI
+
+from persona.agent.prompts import load_prompt
+from persona.api.health import router as health_router
+from persona.db.connection import get_db_connection
+from persona.db.migrations.migrations import apply_migrations
+from persona.deps import AppDeps, set_app_deps
+from persona.llm.client import HFBackend, LLMClient
+from persona.memory.store import MemoryStore
+from persona.settings import get_settings
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    settings = get_settings()
+    conn = get_db_connection()
+    await apply_migrations(conn)
+
+    backend = HFBackend(
+        hf_token=settings.hf_token,
+        chat_model=settings.hf_chat_model,
+        embed_model=settings.hf_embed_model,
+    )
+    client = LLMClient(backend=backend)
+    store = MemoryStore(conn)
+
+    set_app_deps(
+        AppDeps(
+            conn=conn,
+            store=store,
+            client=client,
+            system_prompt=load_prompt("system"),
+            extract_prompt=load_prompt("extract"),
+            title_prompt=load_prompt("title"),
+        )
+    )
+    try:
+        yield
+    finally:
+        conn.close()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(lifespan=lifespan)
+    app.include_router(health_router)
+    return app
+
+
+app = create_app()

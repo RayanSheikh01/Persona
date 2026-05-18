@@ -1,8 +1,6 @@
 from typing import TypedDict
 
-from persona.memory.schema import Memory
-
-from persona.memory.schema import MemoryCandidate
+from persona.memory.schema import Memory, MemoryCandidate
 
 class ChatState(TypedDict, total=False):
     conversation_id: str

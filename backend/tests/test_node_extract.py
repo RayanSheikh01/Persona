@@ -1,21 +1,34 @@
 import pytest
 
-from persona.llm.client import FakeLLMBackend
+from persona.agent.nodes.extract import make_extract_node
+from persona.llm.client import FakeLLMBackend, LLMClient
+
 
 @pytest.mark.asyncio
-async def test_node_extract():
-    from persona.agent.nodes.extract import make_extract_node
+async def test_extract_node_returns_candidates_on_happy_path():
+    extraction = [{"type": "fact", "content": "x", "importance": 3}]
+    client = LLMClient(FakeLLMBackend(extraction=extraction))
+    node = make_extract_node(client=client, extract_prompt="p")
+    out = await node({"user_message": "hi", "assistant_response": "hello"})
+    assert len(out["new_candidates"]) == 1
+    assert out["new_candidates"][0].content == "x"
 
 
-    llm_client = FakeLLMBackend()
-    llm_client.extraction = True
+class _RaisingBackend:
+    async def chat_stream(self, system, messages):
+        if False:
+            yield ""
 
-    with open("persona/agent/prompts/extract.md", "r") as f:
-        extract_prompt = f.read()
+    async def embed(self, text):
+        return [0.0] * 768
 
-    extract_node = make_extract_node(client=llm_client, extract_prompt=extract_prompt)
+    async def extract(self, prompt):
+        raise RuntimeError("rate limited")
 
-    # Test with sample user input
-    user_input = "What is the weather like today?"
-    candidates = await extract_node(user_input)
-    assert candidates == ["Candidate 1", "Candidate 2"]
+
+@pytest.mark.asyncio
+async def test_extract_node_swallows_errors():
+    client = LLMClient(_RaisingBackend())
+    node = make_extract_node(client=client, extract_prompt="p")
+    out = await node({"user_message": "hi", "assistant_response": "hello"})
+    assert out == {"new_candidates": []}

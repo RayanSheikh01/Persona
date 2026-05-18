@@ -1,19 +1,22 @@
+import logging
+
 from persona.memory.extraction import extract_candidates
 
-def make_extract_node(*, client, extract_prompt):
-    async def extract_node(user_input):
+log = logging.getLogger(__name__)
+
+
+def make_extract_node(*, client, extract_prompt: str):
+    async def extract(state):
         try:
             candidates = await extract_candidates(
-                client=client,
-                user_message=user_input,
-                assistant_message="",  # No assistant message for extraction
+                client,
+                state["user_message"],
+                state.get("assistant_response", ""),
                 extract_prompt=extract_prompt,
             )
-            return [candidate.content for candidate in candidates]
         except Exception as e:
-            print(f"Error in extract_node: {e}")
-            return []
-    return extract_node
+            log.warning("extract node failed: %s", e)
+            return {"new_candidates": []}
+        return {"new_candidates": candidates}
 
-
-
+    return extract

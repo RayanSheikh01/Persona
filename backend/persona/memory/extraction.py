@@ -1,19 +1,25 @@
-from persona.memory.schema import MemoryCandidate
+from pydantic import ValidationError
+
 from persona.llm.client import LLMClient
+from persona.memory.schema import MemoryCandidate
+
 
 async def extract_candidates(
     client: LLMClient,
     user_message: str,
     assistant_message: str,
+    *,
     extract_prompt: str,
 ) -> list[MemoryCandidate]:
-    conversation_history = f"User: {user_message}\nAssistant: {assistant_message}"
-    prompt = extract_prompt.format(conversation_history=conversation_history)
-    extraction_results = await client.extract(prompt)
-    candidates = []
-    for result in extraction_results:
-        if result.get("type") and result.get("content"):
-            candidates.append(MemoryCandidate(**result))
+    raw = await client.extract_memories(
+        user_message, assistant_message, extract_prompt=extract_prompt
+    )
+    candidates: list[MemoryCandidate] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            candidates.append(MemoryCandidate(**item))
+        except ValidationError:
+            continue
     return candidates
-
-

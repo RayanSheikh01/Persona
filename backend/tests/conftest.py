@@ -1,11 +1,11 @@
 import pytest
-from httpx import AsyncClient, ASGITransport
+from fastapi.testclient import TestClient
 
-from persona.main import app
+from persona.main import create_app
 
 
 @pytest.fixture
-async def client():
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
-        yield ac
+def client():
+    app = create_app()
+    with TestClient(app) as c:
+        yield c

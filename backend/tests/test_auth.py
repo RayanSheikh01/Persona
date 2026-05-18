@@ -1,24 +1,21 @@
 import pytest
+from fastapi import HTTPException
 
-@pytest.mark.asyncio
-async def test_auth():
-    from persona.api.auth import verify_persona_key
-    from persona.settings import get_settings
+from persona.api.auth import verify_persona_key
+from persona.settings import get_settings
 
-    settings = get_settings()
-    PERSONA_KEY = settings.persona_api_key
 
-    # Test missing header
-    try:
+def test_missing_header_returns_401():
+    with pytest.raises(HTTPException) as exc:
         verify_persona_key(None)
-    except Exception as e:
-        assert e.status_code == 401
+    assert exc.value.status_code == 401
 
-    # Test invalid key
-    try:
+
+def test_wrong_key_returns_401():
+    with pytest.raises(HTTPException) as exc:
         verify_persona_key("invalid_key")
-    except Exception as e:
-        assert e.status_code == 403
+    assert exc.value.status_code == 401
 
-    # Test valid key
-    assert verify_persona_key(PERSONA_KEY) is True
+
+def test_correct_key_returns_true():
+    assert verify_persona_key(get_settings().persona_api_key) is True

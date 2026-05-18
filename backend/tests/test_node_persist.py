@@ -1,43 +1,55 @@
-from unittest.mock import AsyncMock
+from datetime import datetime, timezone
 
 import pytest
 
 from persona.agent.nodes.persist import make_persist_node
+from persona.db.migrations.migrations import apply_migrations
+from persona.llm.client import FakeLLMBackend, LLMClient
+from persona.memory.schema import Memory, MemoryCandidate
+from persona.memory.store import MemoryStore
+from tests.test_memory_store import _open
+
+
+def _mem(id, type_="fact", content="seed"):
+    now = datetime.now(timezone.utc)
+    return Memory(
+        id=id, type=type_, content=content, importance=3,
+        created_at=now, updated_at=now,
+        source_message_id="m", source_conversation_id="c1",
+    )
 
 
 @pytest.mark.asyncio
-async def test_node_persist_calls_persist_memory():
-    conn = object()
-    store = AsyncMock()
-    store.retrieve_memories.return_value = []
-    client = AsyncMock()
-    client.get_embedding.return_value = [0.0] * 768
+async def test_persist_writes_messages_memories_and_retrievals(tmp_path):
+    conn = _open(tmp_path / "p.db")
+    await apply_migrations(conn)
+    store = MemoryStore(conn)
 
-    persist_node = make_persist_node(conn=conn, store=store, client=client)
+    conn.execute(
+        "INSERT INTO conversations (id, title, created_at, last_message_at)"
+        " VALUES ('c1', NULL, datetime('now'), datetime('now'))"
+    )
+    retrieved = _mem("ret-1", content="prior fact")
+    store.insert(retrieved, [1.0] + [0.0] * 767)
 
-    user_input = "Remember that I have a meeting tomorrow."
-    assistant_response = "I will remember that for you."
-    await persist_node(user_input, assistant_response, store)
+    client = LLMClient(FakeLLMBackend(embedding=[0.0] * 767 + [1.0]))
+    node = make_persist_node(conn=conn, store=store, client=client)
 
-    store.persist_memory.assert_awaited_once()
-    args, kwargs = store.persist_memory.await_args
-    assert args[0] is conn
-    assert user_input in kwargs["content"]
-    assert assistant_response in kwargs["content"]
-    assert kwargs["embedding"] == [0.0] * 768
+    state = {
+        "conversation_id": "c1",
+        "user_message": "hello",
+        "assistant_response": "hi",
+        "retrieved_memories": [retrieved],
+        "retrieved_scores": [0.8],
+        "new_candidates": [MemoryCandidate(type="fact", content="new", importance=3)],
+    }
+    out = await node(state)
 
-
-@pytest.mark.asyncio
-async def test_node_persist_skips_when_duplicate():
-    conn = object()
-    embedding = [0.0] * 768
-    store = AsyncMock()
-    store.retrieve_memories.return_value = [{"embedding": embedding}]
-    client = AsyncMock()
-    client.get_embedding.return_value = embedding
-    client.compute_similarity.return_value = 0.99
-
-    persist_node = make_persist_node(conn=conn, store=store, client=client)
-    await persist_node("u", "a", store)
-
-    store.persist_memory.assert_not_awaited()
+    assert len(out["new_memory_ids"]) == 1
+    msg_count = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
+    assert msg_count == 2
+    mem_count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+    assert mem_count == 2  # seed + new
+    retr_count = conn.execute("SELECT COUNT(*) FROM memory_retrievals").fetchone()[0]
+    assert retr_count == 1
+    conn.close()

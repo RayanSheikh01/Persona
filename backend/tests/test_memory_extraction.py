@@ -1,18 +1,32 @@
 import pytest
 
+from persona.llm.client import FakeLLMBackend, LLMClient
+from persona.memory.extraction import extract_candidates
+
+
 @pytest.mark.asyncio
-async def test_memory_extraction():
-    from persona.agent.nodes.extract import make_extract_node
-    from persona.llm.client import FakeLLMBackend
+async def test_valid_candidates_pass_through():
+    backend = FakeLLMBackend(
+        extraction=[
+            {"type": "fact", "content": "Pip is a dog", "importance": 3},
+            {"type": "goal", "content": "Run a marathon", "importance": 4},
+        ]
+    )
+    client = LLMClient(backend)
+    candidates = await extract_candidates(client, "u", "a", extract_prompt="p")
+    assert [c.type for c in candidates] == ["fact", "goal"]
 
-    llm_client = FakeLLMBackend()
-    llm_client.extraction = True
 
-    with open("persona/agent/prompts/extract.md", "r") as f:
-        extract_prompt = f.read()
-
-    extract_node = make_extract_node(client=llm_client, extract_prompt=extract_prompt)
-
-    user_input = "What is the weather like today?"
-    candidates = await extract_node(user_input)
-    assert candidates == ["Candidate 1", "Candidate 2"]
+@pytest.mark.asyncio
+async def test_invalid_candidates_dropped_silently():
+    extraction: list = [
+        {"type": "fact", "content": "valid", "importance": 3},
+        {"type": "nope", "content": "bad type", "importance": 3},
+        {"type": "fact", "content": "bad imp", "importance": 99},
+        "not a dict",
+    ]
+    backend = FakeLLMBackend(extraction=extraction)
+    client = LLMClient(backend)
+    candidates = await extract_candidates(client, "u", "a", extract_prompt="p")
+    assert len(candidates) == 1
+    assert candidates[0].content == "valid"
