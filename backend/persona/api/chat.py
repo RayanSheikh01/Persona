@@ -92,5 +92,13 @@ async def chat(body: ChatIn):
                 yield _sse(kind, data)
         finally:
             await task
+            # if conversation has 2 messages and title is null, set title to first 5 words of first message
+            deps.conn.execute(
+                "UPDATE conversations SET title = substr(?, 1, 100) "
+                "WHERE id = ? AND title IS NULL AND "
+                "(SELECT COUNT(*) FROM messages WHERE conversation_id = ?) = 2",
+                (body.message[:100], body.conversation_id, body.conversation_id),
+            )
+            deps.conn.commit()
 
     return EventSourceResponse(stream(), media_type="text/event-stream")

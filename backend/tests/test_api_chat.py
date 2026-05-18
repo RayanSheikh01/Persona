@@ -151,3 +151,24 @@ def test_chat_no_token_events_when_backend_yields_nothing(client, auth, deps):
     events = _parse_sse(r)
     assert not [d for k, d in events if k == "token"]
     assert events[-1][0] == "done"
+
+
+def test_chat_sets_conversation_title(client, auth, deps):
+    conv_id = _create_conversation(client, auth)
+
+    # Conversation starts with no title
+    r = client.get("/conversations", headers=auth)
+    conv = next(c for c in r.json() if c["id"] == conv_id)
+    assert conv["title"] is None
+
+    # After first chat message, title should be set to first 5 words of that message
+    r = client.post(
+        "/chat",
+        headers=auth,
+        json={"conversation_id": conv_id, "message": "This is a test message to set the title"},
+    )
+    assert r.status_code == 200
+
+    r = client.get("/conversations", headers=auth)
+    conv = next(c for c in r.json() if c["id"] == conv_id)
+    assert conv["title"] == "This is a test message to set the title"[:100]
