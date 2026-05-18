@@ -70,6 +70,8 @@ class HFBackend:
                     max_tokens=1024,
                     temperature=0.7,
                 ):
+                    if not chunk.choices:
+                        continue
                     delta = chunk.choices[0].delta.content
                     if delta:
                         asyncio.run_coroutine_threadsafe(queue.put(delta), loop)
@@ -106,6 +108,8 @@ class HFBackend:
                 temperature=0.2,
             )
         resp = await asyncio.to_thread(call)
+        if not resp.choices:
+            return ""
         return resp.choices[0].message.content or ""
 
     async def extract(self, prompt: str) -> list[dict]:

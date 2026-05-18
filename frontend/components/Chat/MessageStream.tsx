@@ -106,7 +106,12 @@ function Bubble({
             : "bg-zinc-900 text-zinc-100",
         )}
       >
-        <div className="prose prose-invert prose-sm max-w-none break-words [&_p]:my-1 [&_pre]:my-2">
+        <div
+          className={cn(
+            "prose prose-sm max-w-none break-words [&_p]:my-1 [&_pre]:my-2",
+            isUser ? "text-black [&_*]:text-black" : "prose-invert",
+          )}
+        >
           {isStreaming ? (
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-zinc-500" />
           ) : (

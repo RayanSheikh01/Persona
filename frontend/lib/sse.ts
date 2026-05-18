@@ -1,6 +1,8 @@
 import type { ChatDone } from "./types";
 
 const API_KEY = process.env.NEXT_PUBLIC_PERSONA_API_KEY ?? "";
+const API_BASE =
+  process.env.NEXT_PUBLIC_PERSONA_API_BASE ?? "http://localhost:8000";
 
 export type ChatHandlers = {
   onMemoriesUsed?: (memoryIds: string[]) => void;
@@ -17,7 +19,7 @@ export async function streamChat(
 ): Promise<void> {
   let res: Response;
   try {
-    res = await fetch("/api/chat", {
+    res = await fetch(`${API_BASE}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

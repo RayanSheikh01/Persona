@@ -8,6 +8,8 @@ import type {
 } from "./types";
 
 const API_KEY = process.env.NEXT_PUBLIC_PERSONA_API_KEY ?? "";
+const API_BASE =
+  process.env.NEXT_PUBLIC_PERSONA_API_BASE ?? "http://localhost:8000";
 
 function headers(extra?: HeadersInit): HeadersInit {
   return {
@@ -17,7 +19,7 @@ function headers(extra?: HeadersInit): HeadersInit {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}${path}`, {
     ...init,
     headers: headers(init?.headers),
   });
