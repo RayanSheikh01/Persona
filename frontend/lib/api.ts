@@ -1,73 +1,69 @@
-// get api key from .env
+import type {
+  Conversation,
+  MemoriesList,
+  Memory,
+  MemoryType,
+  Message,
+  Stats,
+} from "./types";
 
-const API_KEY = process.env.NEXT_PUBLIC_PERSONA_API_KEY;
+const API_KEY = process.env.NEXT_PUBLIC_PERSONA_API_KEY ?? "";
 
-async function createConversation() {
-  return fetch("/api/conversations", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) => res.json());
+function headers(extra?: HeadersInit): HeadersInit {
+  return {
+    "X-Persona-Key": API_KEY,
+    ...(extra ?? {}),
+  };
 }
 
-async function listConversations() {
-  return fetch("/api/conversations", {
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) => res.json());
-}
-
-async function listMessages(conversationId: string) {
-  return fetch(`/api/conversations/${conversationId}/messages`, {
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) =>
-    res.json()
-  );
-}
-
-async function listMemories() {
-  return fetch("/api/memories", {
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) => res.json());
-}
-
-async function getMemory(memoryId: string) {
-  return fetch(`/api/memories/${memoryId}`, {
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) => res.json());
-}
-
-async function getRetrievals(memoryId: string) {
-  return fetch(`/api/memories/${memoryId}/retrievals`, {
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) => res.json());
-}
-
-async function stats() {
-  return fetch("/api/stats", {
-    headers: {
-      "Authorization": `Bearer ${API_KEY}`
-    }
-  }).then((res) => res.json());
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    ...init,
+    headers: headers(init?.headers),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`api ${path} failed (${res.status}): ${text}`);
+  }
+  return res.json() as Promise<T>;
 }
 
 export const api = {
-  createConversation,
-  listConversations,
-    listMessages,
-    listMemories,
-    getMemory,
-    getRetrievals,
-    stats,
+  createConversation(): Promise<Conversation> {
+    return request<Conversation>("/conversations", { method: "POST" });
+  },
+  listConversations(): Promise<Conversation[]> {
+    return request<Conversation[]>("/conversations");
+  },
+  listMessages(conversationId: string): Promise<Message[]> {
+    return request<Message[]>(
+      `/conversations/${conversationId}/messages`,
+    );
+  },
+  listMemories(params: {
+    type?: MemoryType;
+    q?: string;
+    limit?: number;
+    cursor?: number;
+    include_superseded?: boolean;
+  } = {}): Promise<MemoriesList> {
+    const search = new URLSearchParams();
+    if (params.type) search.set("type", params.type);
+    if (params.q) search.set("q", params.q);
+    if (params.limit != null) search.set("limit", String(params.limit));
+    if (params.cursor != null) search.set("cursor", String(params.cursor));
+    if (params.include_superseded)
+      search.set("include_superseded", "true");
+    const qs = search.toString();
+    return request<MemoriesList>(`/memories${qs ? `?${qs}` : ""}`);
+  },
+  getMemory(id: string): Promise<Memory> {
+    return request<Memory>(`/memories/${id}`);
+  },
+  getRetrievals(messageId: string): Promise<Memory[]> {
+    return request<Memory[]>(`/messages/${messageId}/retrievals`);
+  },
+  stats(): Promise<Stats> {
+    return request<Stats>("/stats");
+  },
 };
-

@@ -2,7 +2,7 @@ import asyncio
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import EventSourceResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from persona.agent.graph import build_graph
@@ -101,4 +101,4 @@ async def chat(body: ChatIn):
             )
             deps.conn.commit()
 
-    return EventSourceResponse(stream(), media_type="text/event-stream")
+    return StreamingResponse(stream(), media_type="text/event-stream")
