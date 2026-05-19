@@ -4,6 +4,20 @@ A conversational AI companion with a typed, persistent SQLite-backed memory. Bac
 
 See [design.md](./design.md) for architecture and [plan.md](./plan.md) for the implementation plan.
 
+## Screenshots
+
+Chat with memory rail:
+
+![Chat](./chat.png)
+
+Memory inspector:
+
+![Memories page](./memories_page.png)
+
+Memory detail:
+
+![Memory page](./memory_page.png)
+
 ## Quickstart
 
 1. **Create a Hugging Face token** at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). A `read` scope is enough.
