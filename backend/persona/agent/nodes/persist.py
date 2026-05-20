@@ -9,7 +9,9 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def make_persist_node(*, conn, store, client, dedup_threshold: float = 0.92):
+def make_persist_node(
+    *, conn, store, client, dedup_threshold: float = 0.92, supersede_threshold: float = 0.85
+):
     async def persist(state):
         conversation_id = state["conversation_id"]
         user_msg_id = str(uuid.uuid4())
@@ -23,18 +25,20 @@ def make_persist_node(*, conn, store, client, dedup_threshold: float = 0.92):
 
         kept_candidates = candidates
         kept_embeddings = cand_embeddings
+        to_supersede: list[tuple[int, str]] = []
         if candidates:
-            same_type_existing: list[tuple[str, list[float]]] = []
+            same_type_existing: list[tuple[str, str, list[float]]] = []
             for t in {c.type for c in candidates}:
                 for m in store.list_by_type(t, include_superseded=True):
                     emb = store.get_embedding(m.id)
                     if emb is not None:
-                        same_type_existing.append((m.id, emb))
-            kept_candidates = drop_duplicates(
+                        same_type_existing.append((m.id, m.type, emb))
+            kept_candidates, to_supersede = drop_duplicates(
                 candidates,
                 cand_embeddings,
                 same_type_existing,
                 threshold=dedup_threshold,
+                supersede_threshold=supersede_threshold,
             )
             kept_set = {id(c) for c in kept_candidates}
             kept_embeddings = [

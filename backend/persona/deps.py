@@ -28,3 +28,9 @@ def get_app_deps() -> AppDeps:
     if _deps is None:
         raise RuntimeError("AppDeps not initialized")
     return _deps
+
+def get_summary_store():
+    deps = get_app_deps()
+    from persona.memory.summaries import ConversationSummaryStore
+
+    return ConversationSummaryStore(deps.conn)

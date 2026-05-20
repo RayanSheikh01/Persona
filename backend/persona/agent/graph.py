@@ -1,6 +1,7 @@
 from langgraph.graph import END, StateGraph
 
 from .nodes.extract import make_extract_node
+from .nodes.summarize import make_summarize_node
 from .nodes.persist import make_persist_node
 from .nodes.respond import make_respond_node
 from .nodes.retrieve import make_retrieve_node
@@ -16,6 +17,7 @@ def build_graph(
     extract_prompt: str,
     on_token=None,
     on_retrieved=None,
+    summary_store=None
 ):
     g = StateGraph(ChatState)
     g.add_node(
@@ -31,10 +33,22 @@ def build_graph(
     g.add_node(
         "extract", make_extract_node(client=client, extract_prompt=extract_prompt)
     )
+    if summary_store is not None:
+        g.add_node(
+            "summarize",
+            make_summarize_node(
+                summary_store=summary_store, buffer_turns=20, stride=10, summarizer=None
+            ),
+        )
     g.add_node("persist", make_persist_node(conn=conn, store=store, client=client))
     g.set_entry_point("retrieve")
     g.add_edge("retrieve", "respond")
     g.add_edge("respond", "extract")
     g.add_edge("extract", "persist")
-    g.add_edge("persist", END)
+    if summary_store is not None:
+        g.add_edge("persist", "summarize")
+        g.add_edge("summarize", END)
+    else:
+        g.add_edge("persist", END)
+
     return g.compile()

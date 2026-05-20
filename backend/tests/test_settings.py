@@ -35,7 +35,7 @@ def test_get_settings_returns_settings(monkeypatch):
     assert settings.hf_token == "hf_replace_me"
     assert settings.working_buffer_turns == 20
     assert settings.working_summarize_stride == 10
-    assert settings.procedural_maxx_rules == 20
+    assert settings.procedural_max_rules == 20
     assert settings.dedup_threshold == 0.92
     assert settings.supersede_threshold == 0.85
 

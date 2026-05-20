@@ -3,6 +3,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+import pytest
+
 from persona.memory.schema import Memory
 
 
@@ -172,3 +174,4 @@ def test_chat_sets_conversation_title(client, auth, deps):
     r = client.get("/conversations", headers=auth)
     conv = next(c for c in r.json() if c["id"] == conv_id)
     assert conv["title"] == "This is a test message to set the title"[:100]
+

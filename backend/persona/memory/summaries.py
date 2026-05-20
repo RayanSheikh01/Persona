@@ -1,10 +1,6 @@
 
 
 from datetime import datetime
-from persona.db.connection import get_db_connection
-
-conn = get_db_connection()
-
 
 
 class ConversationSummary():

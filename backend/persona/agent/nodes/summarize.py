@@ -24,4 +24,10 @@ def make_summarize_node(summary_store, *, buffer_turns: int, stride: int, summar
             summary_store.upsert(conversation_id, summary, last_id)
             return {"summary": summary}
 
+        async def __call__(self, state: dict) -> dict:
+            return await self.run(
+                history=state.get("history", []),
+                conversation_id=state["conversation_id"],
+            )
+
     return _Node()
