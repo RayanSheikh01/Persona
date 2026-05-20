@@ -175,3 +175,34 @@ def test_chat_sets_conversation_title(client, auth, deps):
     conv = next(c for c in r.json() if c["id"] == conv_id)
     assert conv["title"] == "This is a test message to set the title"[:100]
 
+@pytest.mark.asyncio
+async def test_chat_with_new_system_prompt(client, auth, deps):
+    deps.system_prompt = "System prompt. Memories: {memories_block} Rules: {rules_block} Summary: {session_summary}"
+    deps.client.backend.chat_chunks = ["hello", " world"]
+    conv_id = _create_conversation(client, auth)
+
+    r = client.post(
+        "/chat",
+        headers=auth,
+        json={"conversation_id": conv_id, "message": "Hi"},
+    )
+    assert r.status_code == 200
+
+    events = _parse_sse(r)
+    tokens = [data for kind, data in events if kind == "token"]
+    assert tokens == ["hello", " world"]
+
+    done_payload = events[-1][1]
+    assert done_payload["user_message_id"]
+    assert done_payload["assistant_message_id"]
+
+    # The persist node actually wrote both messages.
+    rows = deps.conn.execute(
+        "SELECT role, content FROM messages WHERE conversation_id = ? ORDER BY created_at",
+        (conv_id,),
+    ).fetchall()
+    assert [r["role"] for r in rows] == ["user", "assistant"]
+    assert rows[0]["content"] == "Hi"
+    assert rows[1]["content"] == "hello world"
+
+    
