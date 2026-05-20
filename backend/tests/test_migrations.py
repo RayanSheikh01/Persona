@@ -9,3 +9,4 @@ async def test_migrations():
         await apply_migrations()
     except Exception as e:
         pytest.fail(f"Applying migrations failed with error: {e}")
+
