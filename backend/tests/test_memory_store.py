@@ -72,3 +72,23 @@ async def test_vector_search_orders_by_closeness(store):
 async def test_insert_rejects_wrong_dim(store):
     with pytest.raises(ValueError):
         store.insert(_mem("a"), [0.0] * 10)
+
+
+
+@pytest.mark.asyncio
+async def test_superseding(store):
+    m1 = _mem("a", content="old memory")
+    m2 = _mem("b", content="new memory")
+    store.insert(m1, [0.0] * 768)
+    store.insert(m2, [0.0] * 768)
+    store.set_superseded_by("a", "b")
+    assert store.get("a").superseded_by == "b"
+    assert store.get("b").superseded_by is None
+    # Superseded memory should still be retrievable
+    assert store.get("a").content == "old memory"
+    # Superseded memory should not appear in list_by_type by default
+    assert [m.id for m in store.list_by_type("fact")] == ["b"]
+    # Superseded memory should appear if include_superseded=True
+    assert [m.id for m in store.list_by_type("fact", include_superseded=True)] == ["b", "a"]
+
+    

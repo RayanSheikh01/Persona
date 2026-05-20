@@ -140,3 +140,16 @@ class MemoryStore:
             "SELECT embedding FROM memories_vec WHERE memory_id = ?", (id,)
         ).fetchone()
         return _unpack(row["embedding"]) if row else None
+    
+    def list_procedural(self, *, limit: int = 20) -> List[Memory]:
+        rows = self.conn.execute(
+            "SELECT * FROM memories WHERE type = 'procedural' ORDER BY created_at DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        return [_row_to_memory(r) for r in rows]
+    
+    def set_superseded_by(self, memory_id: str, superseded_by: Optional[str]) -> None:
+        self.conn.execute(
+            "UPDATE memories SET superseded_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (superseded_by, memory_id)
+        )
