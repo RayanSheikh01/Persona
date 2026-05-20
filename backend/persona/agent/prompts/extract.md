@@ -11,6 +11,7 @@ Choose exactly one type per memory. Be strict — if a fact doesn't clearly fit 
 - **fact** — concrete information the user has shared about their world that isn't identity or preference. Their company's tech stack, their partner's job, a deadline that exists, the address of their gym.
 - **goal** — something the user is working toward or wants to achieve. Has a direction. "Learning Rust," "trying to run a half marathon by spring," "want to quit my job within a year."
 - **event** — something that happened or is happening at a specific time. "Had a fight with my brother yesterday," "starting a new job Monday," "got back from Tokyo last week." Anchored in time.
+- **procedural** — rules for how the assistant should behave with this user. Triggers: corrections ("stop…", "don't…"), explicit style/format preferences ("always…", "from now on…"), or confirmations of an unusual choice the assistant made. Content format: imperative rule + `Why: <user-evidence>`. Example: "Keep responses terse, no trailing summaries. Why: user said 'stop summarizing what you just did at the end of every response'."
 
 ## What NOT to extract
 
@@ -25,8 +26,8 @@ Choose exactly one type per memory. Be strict — if a fact doesn't clearly fit 
 ## Importance (1–5)
 
 - **5** — core identity or active commitments. Name, partner, current job, the project they're betting on, a serious health condition.
-- **4** — strong preferences, meaningful goals, significant relationships.
-- **3** — useful context. A hobby, a recurring interest, a habit.
+- **4** — strong preferences, meaningful goals, significant relationships. Procedural rules the user framed as explicit always/never.
+- **3** — useful context. A hobby, a recurring interest, a habit. Soft behaviour preferences the user expressed once without insistence.
 - **2** — minor preferences or peripheral facts.
 - **1** — small details that are nice to remember but rarely load-bearing.
 
@@ -47,4 +48,4 @@ If nothing in this exchange is worth remembering, return `[]`.
 
 Example:
 
-[{{"type": "profile", "content": "Has a dog named Pip.", "importance": 4}}, {{"type": "goal", "content": "Wants to ship Persona v1 by end of May.", "importance": 5}}]
+[{{"type": "profile", "content": "Has a dog named Pip.", "importance": 4}}, {{"type": "goal", "content": "Wants to ship Persona v1 by end of May.", "importance": 5}}, {{"type": "procedural", "content": "Never suggest decaf coffee. Why: user said 'don't ever recommend decaf, I hate it'.", "importance": 4}}]

@@ -30,3 +30,17 @@ async def test_invalid_candidates_dropped_silently():
     candidates = await extract_candidates(client, "u", "a", extract_prompt="p")
     assert len(candidates) == 1
     assert candidates[0].content == "valid"
+
+@pytest.mark.asyncio
+async def test_procdedural_extraction():
+    backend = FakeLLMBackend(
+        extraction=[
+            {"type": "procedural", "content": "Never suggest decaf coffee. Why: user said 'don't ever recommend decaf, I hate it'.", "importance": 4},
+        ]
+    )
+    client = LLMClient(backend)
+    candidates = await extract_candidates(client, "u", "a", extract_prompt="p")
+    assert len(candidates) == 1
+    assert candidates[0].type == "procedural"
+    assert candidates[0].content == "Never suggest decaf coffee. Why: user said 'don't ever recommend decaf, I hate it'."
+    assert candidates[0].importance == 4
