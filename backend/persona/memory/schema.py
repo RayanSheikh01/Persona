@@ -2,8 +2,8 @@ from pydantic import BaseModel, Field
 from typing import Literal
 from datetime import datetime
 
-MemoryType = Literal["profile", "preference", "fact", "goal", "event"]
-MEMORY_TYPES = ["profile", "preference", "fact", "goal", "event"]
+MemoryType = Literal["profile", "preference", "fact", "goal", "event", "procedural"]
+MEMORY_TYPES = ["profile", "preference", "fact", "goal", "event", "procedural"]
 
 
 class MemoryCandidate(BaseModel):

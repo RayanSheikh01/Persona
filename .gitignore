@@ -21,6 +21,8 @@ data/*
 .vscode
 design.md
 plan.md
+memory_plan.md
+memory_imp_plan.md
 
 # OS
 .DS_Store
