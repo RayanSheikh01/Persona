@@ -27,3 +27,16 @@ def test_defaults_apply_when_unset(monkeypatch):
     assert settings.hf_chat_model == "meta-llama/Llama-3.1-8B-Instruct"
     assert settings.hf_embed_model == "sentence-transformers/all-mpnet-base-v2"
     assert settings.persona_log_level == "INFO"
+
+
+def test_get_settings_returns_settings(monkeypatch):
+    settings = _isolated(monkeypatch)
+    assert isinstance(settings, Settings)
+    assert settings.hf_token == "hf_replace_me"
+    assert settings.working_buffer_turns == 20
+    assert settings.working_summarize_stride == 10
+    assert settings.procedural_maxx_rules == 20
+    assert settings.dedup_threshold == 0.92
+    assert settings.supersede_threshold == 0.85
+
+    
