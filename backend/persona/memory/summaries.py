@@ -57,3 +57,5 @@ class ConversationSummaryStore():
             (conversation_id, summary, summarized_through_message_id)
         )
 
+    def get_latest(self, conversation_id: str) -> ConversationSummary | None:
+        return self.get(conversation_id)
