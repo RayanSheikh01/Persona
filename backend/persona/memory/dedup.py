@@ -1,30 +1,40 @@
 from persona.memory.schema import MemoryCandidate
 
 
+
 def drop_duplicates(
     candidates: list[MemoryCandidate],
     candidate_embeddings: list[list[float]],
-    existing_same_type: list[tuple[str, list[float]]],
-    *, threshold: float = 0.92,
-) -> list[MemoryCandidate]:
-    def cosine_similarity(vec1, vec2):
-        dot_product = sum(a * b for a, b in zip(vec1, vec2))
-        norm1 = sum(a * a for a in vec1) ** 0.5
-        norm2 = sum(b * b for b in vec2) ** 0.5
-        return dot_product / (norm1 * norm2) if norm1 and norm2 else 0.0
+    existing: list[tuple[str, str, list[float]]],   # (id, type, embedding)
+    *, threshold: float, supersede_threshold: float,
+) -> tuple[list[MemoryCandidate], list[tuple[int, str]]]:
+    """
+    Returns a deduplicated list of MemoryCandidates, along with a list of indices and ids of existing memories that should be superseded.
+    """
+    import numpy as np
+    from sklearn.metrics.pairwise import cosine_similarity
 
-    filtered: list[MemoryCandidate] = []
-    kept_embeddings: list[list[float]] = []
-    for candidate, embedding in zip(candidates, candidate_embeddings):
-        is_duplicate = any(
-            cosine_similarity(embedding, existing) >= threshold
-            for _, existing in existing_same_type
-        ) or any(
-            cosine_similarity(embedding, kept) >= threshold
-            for kept in kept_embeddings
-        )
-        if not is_duplicate:
-            filtered.append(candidate)
-            kept_embeddings.append(embedding)
-    return filtered
+    if not candidates:
+        return [], []
+    candidate_matrix = np.array(candidate_embeddings)
+    existing_ids, existing_types, existing_embeddings = zip(*existing) if existing else ([], [], [])
+    existing_matrix = np.array(existing_embeddings) if existing else np.empty((0, len(candidate_embeddings[0])))
+
+    if existing_matrix.size > 0:
+        similarity = cosine_similarity(candidate_matrix, existing_matrix)
+        to_keep = []
+        to_supersede = []
+        for i, candidate in enumerate(candidates):
+            max_sim_idx = np.argmax(similarity[i])
+            max_sim_score = similarity[i][max_sim_idx]
+            if max_sim_score >= threshold:
+                # Near-duplicate: drop candidate, record the pairing with the existing memory.
+                to_supersede.append((i, existing_ids[max_sim_idx]))
+                continue
+            to_keep.append(candidate)
+            if max_sim_score >= supersede_threshold:
+                to_supersede.append((i, existing_ids[max_sim_idx]))
+        return to_keep, to_supersede
+    return candidates, []
+
 
