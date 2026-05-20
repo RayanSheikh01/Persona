@@ -41,3 +41,37 @@ async def test_retrieve_returns_nearest_first(tmp_path):
     out = await node({"user_message": "hi"})
     assert out["retrieved_memories"][0].id == "near"
     conn.close()
+
+
+@pytest.mark.asyncio
+async def test_retrieve_calls_on_retrieved(tmp_path):
+    conn = _open(tmp_path / "t.db")
+    await apply_migrations(conn)
+    store = MemoryStore(conn)
+
+    proc = _mem("proc", "Keep it short. Why: user said 'stop summarizing every response'.")
+    proc.type = "procedural"
+    store.insert(proc, [0.0] * 768)
+
+    node = make_retrieve_node(store=store, client=_Client([0.0] * 768), on_retrieved=lambda mems: mems[0].content)
+    out = await node({"user_message": "hi"})
+    assert out["procedural_rules"][0].id == "proc"
+    assert out["session_summary"] == "Keep it short. Why: user said 'stop summarizing every response'."
+    conn.close()
+
+@pytest.mark.asyncio
+async def test_retrieve_on_retrieved_can_be_async(tmp_path):
+    conn = _open(tmp_path / "t.db")
+    await apply_migrations(conn)
+    store = MemoryStore(conn)
+
+    proc = _mem("proc", "Keep it short. Why: user said 'stop summarizing every response'.")
+    proc.type = "procedural"
+    store.insert(proc, [0.0] * 768)
+
+    async def on_retrieved(mems):
+        assert mems[0].id == "proc"
+
+    node = make_retrieve_node(store=store, client=_Client([0.0] * 768), on_retrieved=on_retrieved)
+    await node({"user_message": "hi"})
+    conn.close()

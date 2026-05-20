@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     persona_log_level: str = Field(default="INFO")
     working_buffer_turns: int = Field(default=20)
     working_summarize_stride: int = Field(default=10)
-    procedural_maxx_rules: int = Field(default=20)
+    procedural_max_rules: int = Field(default=20)
     dedup_threshold: float = Field(default=0.92)
     supersede_threshold: float = Field(default=0.85)
 

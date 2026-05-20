@@ -13,3 +13,5 @@ class ChatState(TypedDict, total=False):
     assistant_response: str
     new_candidates: list[MemoryCandidate]
     new_memory_ids: list[str]
+    procedural_rules: list[Memory]
+    session_summary: str | None
