@@ -7,7 +7,7 @@ from persona.settings import get_settings
 settings = get_settings()
 procedural_max_rules = settings.procedural_max_rules
 
-def make_retrieve_node(*, store, client, k: int = 8, top_n: int = 20, on_retrieved=None, summary_store=None):
+def make_retrieve_node(*, store, client, k: int = 8, top_n: int = 20, on_retrieved=None, summary_store=None, simplemem=None):
     async def retrieve(state):
         user_message = state["user_message"]
         query_embedding = await client.embed(user_message)
@@ -32,7 +32,11 @@ def make_retrieve_node(*, store, client, k: int = 8, top_n: int = 20, on_retriev
             retrieved_memories = [m for m, _ in ranked]
             retrieved_scores = [s for _, s in ranked]
 
-        session_summary = None
+        if simplemem:
+            retrieved_memories= simplemem.ask(user_message)
+            session_summary = retrieved_memories
+        else:
+            session_summary = None
         if on_retrieved is not None:
             result = on_retrieved(retrieved_memories)
             if iscoroutinefunction(on_retrieved) or hasattr(result, "__await__"):

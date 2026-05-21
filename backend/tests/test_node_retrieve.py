@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 
 import pytest
@@ -74,4 +75,16 @@ async def test_retrieve_on_retrieved_can_be_async(tmp_path):
 
     node = make_retrieve_node(store=store, client=_Client([0.0] * 768), on_retrieved=on_retrieved)
     await node({"user_message": "hi"})
+    conn.close()
+
+@pytest.mark.asyncio
+async def test_retrieve_with_simplemem(tmp_path):
+    conn = _open(tmp_path / "t.db")
+    await apply_migrations(conn)
+    store = MemoryStore(conn)
+    simplemem = pytest.importorskip("persona.memory.simplemem_adapter").SimpleMemAdapter(str(tmp_path / "simplemem"), clear=True)
+
+    node = make_retrieve_node(store=store, client=_Client([0.0] * 768), simplemem=simplemem)
+    out = await node({"user_message": "What did I say?"})
+    assert out["session_summary"] == "This is a placeholder response to the query: What did I say?"
     conn.close()
