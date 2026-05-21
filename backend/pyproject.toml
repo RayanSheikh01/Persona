@@ -17,6 +17,7 @@ dependencies = [
   "sentence-transformers>=2.7",
   "sqlite-vec>=0.1.1",
   "numpy>=1.26",
+  "simplemem",
 ]
 
 [project.optional-dependencies]

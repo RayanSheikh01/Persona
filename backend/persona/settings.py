@@ -1,9 +1,13 @@
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
 
     hf_token: str = Field(default="hf_replace_me")
+    memory_backend: Literal["sqlite", "simplemem"] = Field(default="sqlite")
+    simplemem_db_dir: str = Field(default="data/simplemem")
     hf_chat_model: str = Field(default="meta-llama/Llama-3.1-8B-Instruct")
     hf_embed_model: str = Field(default="sentence-transformers/all-mpnet-base-v2")
     persona_api_key: str = Field(default="local-dev-shared-secret")
