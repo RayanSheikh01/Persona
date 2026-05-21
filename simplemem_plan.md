@@ -1,12 +1,8 @@
 # SimpleMem Integration Plan
 
-> Add [SimpleMem](https://github.com/aiming-lab/SimpleMem) as an alternative long-term memory backend alongside the existing typed SQLite store.
+Add [SimpleMem](https://github.com/aiming-lab/SimpleMem) as an alternative long-term memory backend, switchable via `MEMORY_BACKEND`.
 
-**Goal:** Replace (or run in parallel with) the current `retrieve → respond → extract → persist` memory path with SimpleMem's three-stage pipeline: `add_dialogue → finalize → ask`.
-
-**Why:** Higher F1 on long-context recall, ~98% token reduction, atomic-fact entries with resolved coreferences & absolute timestamps.
-
-**Strategy:** Wrap `SimpleMemSystem` behind a thin adapter that matches the existing `MemoryStore` retrieval surface so the LangGraph nodes stay unchanged. Gate via a `MEMORY_BACKEND=simplemem|sqlite` setting.
+**Strategy:** thin adapter around `SimpleMemSystem` (`add_dialogue → finalize → ask`); branch the existing `retrieve` and `persist` nodes on the backend setting so graph wiring is unchanged.
 
 ---
 
@@ -16,114 +12,65 @@
 
 ```text
 backend/
-├── pyproject.toml                              [M]  add `simplemem` dep
+├── pyproject.toml                              [M]  + simplemem dep
 ├── persona/
-│   ├── settings.py                             [M]  + MEMORY_BACKEND, SIMPLEMEM_DB_DIR
-│   ├── memory/
-│   │   └── simplemem_adapter.py                [C]  SimpleMemAdapter wrapping SimpleMemSystem
-│   ├── agent/
-│   │   └── nodes/
-│   │       ├── retrieve.py                     [M]  branch on backend
-│   │       └── persist.py                      [M]  branch on backend (add_dialogue + finalize)
-│   ├── deps.py                                 [M]  build adapter when backend=simplemem
-│   └── main.py                                 [M]  lifespan picks backend
+│   ├── settings.py                             [M]  + memory_backend, simplemem_db_dir
+│   ├── memory/simplemem_adapter.py             [C]  SimpleMemAdapter
+│   ├── agent/nodes/retrieve.py                 [M]  branch on backend
+│   ├── agent/nodes/persist.py                  [M]  branch on backend
+│   ├── agent/graph.py                          [M]  forward simplemem kwarg
+│   ├── deps.py                                 [M]  carry adapter
+│   └── main.py                                 [M]  build adapter in lifespan
 └── tests/
-    ├── test_simplemem_adapter.py               [C]  add_dialogue/ask roundtrip
-    └── test_node_retrieve_simplemem.py         [C]  retrieve node uses adapter
+    ├── test_simplemem_adapter.py               [C]
+    ├── test_node_retrieve_simplemem.py         [C]
+    └── test_simplemem_e2e.py                   [C]  env-gated
 ```
 
 ---
 
-## Task 1: Dependency + settings
+## Task 1 — dep + settings ✅
 
-- [ ] Add `simplemem` to `backend/pyproject.toml` deps.
-- [ ] `pip install -e .` in venv.
-- [ ] In `persona/settings.py` add:
-  - `memory_backend: Literal["sqlite", "simplemem"] = "sqlite"` (alias `MEMORY_BACKEND`)
-  - `simplemem_db_dir: str = "data/simplemem"` (alias `SIMPLEMEM_DB_DIR`)
-- [ ] Append to `.env.example`.
-- [ ] Commit: `feat(settings): MEMORY_BACKEND switch + simplemem dir`.
+- [x] Add `simplemem` to `backend/pyproject.toml`.
+- [x] `settings.py`: `memory_backend: Literal["sqlite","simplemem"]`, `simplemem_db_dir`.
+- [x] Append `MEMORY_BACKEND` + `SIMPLEMEM_DB_DIR` to `.env.example`.
+- [x] `pip install simplemem`.
 
----
+## Task 2 — adapter
 
-## Task 2: SimpleMem adapter
-
-**File:** `persona/memory/simplemem_adapter.py`
-
-Wrap `SimpleMemSystem` behind a minimal surface used by the graph nodes:
-
-```python
-class SimpleMemAdapter:
-    def __init__(self, db_dir: str, *, clear: bool = False):
-        from simplemem import SimpleMemSystem
-        self._sys = SimpleMemSystem(db_dir=db_dir, clear_db=clear)
-
-    def add_turn(self, *, speaker: str, content: str, ts: str) -> None:
-        self._sys.add_dialogue(speaker, content, ts)
-
-    def finalize(self) -> None:
-        self._sys.finalize()
-
-    def ask(self, query: str) -> str:
-        return self._sys.ask(query)
-```
-
-- [ ] Failing test: instantiate with `tmp_path`, add two dialogues, `finalize`, `ask` returns non-empty string (mock the LLM via SimpleMem's config or skip-mark behind `RUN_SIMPLEMEM=1`).
-- [ ] Implement.
+- [ ] `memory/simplemem_adapter.py`: `SimpleMemAdapter(db_dir, clear=False)` wrapping `SimpleMemSystem` with `add_turn(speaker, content, ts)`, `finalize()`, `ask(query)`.
+- [ ] Test: tmp_path init + add two dialogues + finalize + ask returns non-empty (env-gated `RUN_SIMPLEMEM=1`).
 - [ ] Commit: `feat(memory): SimpleMemAdapter`.
 
----
+## Task 3 — retrieve node branch
 
-## Task 3: Branch retrieve node
+- [ ] `make_retrieve_node(..., simplemem=None)`: if set, call `simplemem.ask(user_message)`, stash result in `state["session_summary"]`, return empty `retrieved_memories`/`retrieved_scores`.
+- [ ] Test with stub adapter.
+- [ ] Commit: `feat(agent): retrieve via SimpleMem`.
 
-**File:** `persona/agent/nodes/retrieve.py`
+## Task 4 — persist node branch
 
-- [ ] Accept optional `simplemem=None` kwarg in `make_retrieve_node`.
-- [ ] When set, skip vector + FTS path. Call `simplemem.ask(user_message)` and stash the returned context string in `state["session_summary"]` (reuses the existing `{session_summary}` slot in `system.md`). Set `retrieved_memories=[]`, `retrieved_scores=[]`.
-- [ ] Test: with a stubbed adapter returning `"FACT"`, node yields `session_summary == "FACT"` and empty memories list.
-- [ ] Commit: `feat(agent): retrieve via SimpleMem when configured`.
+- [ ] `make_persist_node(..., simplemem=None)`: after writing messages rows, call `add_turn` x2 + `finalize()`; skip embed/dedup/memories insert block.
+- [ ] Test with stub adapter.
+- [ ] Commit: `feat(agent): persist into SimpleMem`.
 
----
+## Task 5 — wire through deps + graph
 
-## Task 4: Branch persist node
-
-**File:** `persona/agent/nodes/persist.py`
-
-- [ ] Accept optional `simplemem=None`.
-- [ ] When set, after writing the user+assistant `messages` rows, call:
-  - `simplemem.add_turn(speaker="user", content=user_msg, ts=created_at_iso)`
-  - `simplemem.add_turn(speaker="assistant", content=assistant_msg, ts=created_at_iso)`
-  - `simplemem.finalize()`
-- [ ] Skip the existing embed → dedup → memories insert block in this branch.
-- [ ] Test: with adapter stub, assert `add_turn` called twice and `finalize` called once; no rows in `memories`.
-- [ ] Commit: `feat(agent): persist into SimpleMem when configured`.
-
----
-
-## Task 5: Wire into deps + lifespan
-
-**Files:** `persona/deps.py`, `persona/main.py`, `persona/agent/graph.py`
-
-- [ ] Add `simplemem: SimpleMemAdapter | None = None` to `AppDeps`.
-- [ ] In `main.lifespan`, if `settings.memory_backend == "simplemem"`, construct adapter (`db_dir=settings.simplemem_db_dir`) and pass through to `build_graph`.
-- [ ] `build_graph(..., simplemem=None)`: forward kwarg to retrieve + persist node factories.
+- [ ] `AppDeps.simplemem: SimpleMemAdapter | None`.
+- [ ] `build_graph(..., simplemem=None)` forwards kwarg to retrieve + persist factories.
+- [ ] `main.lifespan`: if `settings.memory_backend == "simplemem"`, construct adapter and pass through.
 - [ ] Commit: `feat(app): wire SimpleMem through lifespan + graph`.
 
----
+## Task 6 — e2e smoke
 
-## Task 6: Smoke test (env-gated)
-
-**File:** `tests/test_simplemem_e2e.py`
-
-- [ ] `pytestmark = skipif(os.environ.get("RUN_SIMPLEMEM") != "1", ...)`.
-- [ ] Spin app with `MEMORY_BACKEND=simplemem`, one chat round-trip, assert assistant_response non-empty and adapter DB dir contains files.
-- [ ] Commit: `test: env-gated SimpleMem end-to-end smoke`.
+- [ ] `tests/test_simplemem_e2e.py`, `skipif RUN_SIMPLEMEM != "1"`: one chat round-trip with `MEMORY_BACKEND=simplemem`; assert non-empty response + adapter db dir populated.
+- [ ] Commit: `test: env-gated SimpleMem e2e`.
 
 ---
 
 ## Notes / Risks
 
-- **SimpleMem owns its own LLM + embedder config** (`config.py`). Either reuse the project's `HF_TOKEN` env or document a separate `OPENAI_API_KEY`/Qwen embedder setup. Capture in README quickstart.
-- **No typed memory inspector** when running on SimpleMem — `/memories` page will be empty. Acceptable for v1; follow-up could mirror SimpleMem entries into a read-only view.
-- **Procedural rules + working-memory summary** (memory_imp_plan.md) are bypassed in the SimpleMem branch; the `ask()` result occupies the same prompt slot. Revisit if both backends need rules.
-- **First `finalize()` is slow** (consolidation pass). If latency hurts UX, push it to a background task after the SSE `done` event.
+- SimpleMem brings its own LLM + embedder config (`config.py`); document required env in README.
+- `/memories` inspector is empty under SimpleMem (no typed rows); accept for v1.
+- Procedural rules + working summary are bypassed in SimpleMem branch — `ask()` occupies the `{session_summary}` slot.
+- First `finalize()` is slow; consider moving to a background task after SSE `done` if it hurts UX.
