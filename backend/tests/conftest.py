@@ -38,6 +38,7 @@ def deps(tmp_path, monkeypatch):
         system_prompt="",
         extract_prompt="",
         title_prompt="",
+        simplemem=None,
     )
     set_app_deps(app_deps)
     yield app_deps
