@@ -10,7 +10,7 @@ def _iso_now() -> str:
 
 
 def make_persist_node(
-    *, conn, store, client, dedup_threshold: float = 0.92, supersede_threshold: float = 0.85
+    *, conn, store, client, dedup_threshold: float = 0.92, supersede_threshold: float = 0.85, simplemem=None
 ):
     async def persist(state):
         conversation_id = state["conversation_id"]
@@ -65,6 +65,11 @@ def make_persist_node(
                 "UPDATE conversations SET last_message_at = ? WHERE id = ?",
                 (now_iso, conversation_id),
             )
+            
+            if simplemem:
+                simplemem.add_turn("user", state["user_message"], ts=now_iso)
+                simplemem.add_turn("assistant", state.get("assistant_response", ""), ts=now_iso)
+                simplemem.finalize()
 
             new_ids: list[str] = []
             for cand, emb in zip(kept_candidates, kept_embeddings):
