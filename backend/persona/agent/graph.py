@@ -17,7 +17,8 @@ def build_graph(
     extract_prompt: str,
     on_token=None,
     on_retrieved=None,
-    summary_store=None
+    summary_store=None,
+    simple_mem=None,
 ):
     g = StateGraph(ChatState)
     g.add_node(
@@ -33,6 +34,20 @@ def build_graph(
     g.add_node(
         "extract", make_extract_node(client=client, extract_prompt=extract_prompt)
     )
+    
+    if simple_mem:
+        g.add_node(
+            "simplemem",
+            lambda state: simple_mem.ask(state["user_message"])
+        )
+        g.add_edge("retrieve", "simplemem")
+        g.add_edge("simplemem", "respond")
+    else:
+        g.add_edge("retrieve", "respond")
+    
+    
+    
+
     if summary_store is not None:
         g.add_node(
             "summarize",
@@ -40,7 +55,10 @@ def build_graph(
                 summary_store=summary_store, buffer_turns=20, stride=10, summarizer=None
             ),
         )
-    g.add_node("persist", make_persist_node(conn=conn, store=store, client=client))
+    g.add_node(
+        "persist",
+        make_persist_node(conn=conn, store=store, client=client, simplemem=simple_mem),
+    )
     g.set_entry_point("retrieve")
     g.add_edge("retrieve", "respond")
     g.add_edge("respond", "extract")

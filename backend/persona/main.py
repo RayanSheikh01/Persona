@@ -25,7 +25,12 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     conn = get_db_connection()
     await apply_migrations(conn)
+    if settings.memory_backend == "simplemem":
+        from persona.memory.simplemem_adapter import SimpleMemAdapter
 
+        simplemem = SimpleMemAdapter(str(settings.simplemem_path), clear=False)
+    else:
+        simplemem = None
     backend = HFBackend(
         hf_token=settings.hf_token,
         chat_model=settings.hf_chat_model,
@@ -42,6 +47,7 @@ async def lifespan(app: FastAPI):
             system_prompt=load_prompt("system"),
             extract_prompt=load_prompt("extract"),
             title_prompt=load_prompt("title"),
+            simplemem=simplemem,
         )
     )
     try:

@@ -4,6 +4,7 @@ from typing import Optional
 
 from persona.llm.client import LLMClient
 from persona.memory.store import MemoryStore
+from persona.memory.simplemem_adapter import SimpleMemAdapter
 
 
 @dataclass
@@ -14,6 +15,7 @@ class AppDeps:
     system_prompt: str
     extract_prompt: str
     title_prompt: str
+    simplemem: SimpleMemAdapter | None
 
 
 _deps: Optional[AppDeps] = None
